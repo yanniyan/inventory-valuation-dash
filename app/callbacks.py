@@ -5,10 +5,9 @@ from app import app
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(BASE_DIR, "data", "inventory_valuation_12m.csv")
+DATA_PATH = os.path.join(BASE_DIR, "data", "inventory_valuation.csv")
 
 df = pd.read_csv(DATA_PATH)
-#df = pd.read_csv("../data/inventory_valuation_12m.csv")
 
 @app.callback(
     [
@@ -16,26 +15,28 @@ df = pd.read_csv(DATA_PATH)
         Output("total-valuation", "children"),
     ],
     [
-        Input("sku-filter", "value"),
-        Input("location-filter", "value"),
+        Input("SKU-filter", "value"),
+        Input("Location-filter", "value"),
     ],
 )
-def update_dashboard(selected_skus, selected_locations):
+def update_dashboard(selected_SKUs, selected_Locations):
     dff = df.copy()
 
-    if selected_skus:
-        dff = dff[dff["sku"].isin(selected_skus)]
-    if selected_locations:
-        dff = dff[dff["location"].isin(selected_locations)]
+    if selected_SKUs:
+        dff = dff[dff["sku"].isin(selected_SKUs)]
+    if selected_Locations:
+        dff = dff[dff["location"].isin(selected_Locations)]
         
     agg = (
-        dff.groupby("month", as_index=False)["inventory_value"]
-        .sum()
-        .sort_values("month")
-    )
+    dff.groupby("month", as_index=False)["inventory_value"]
+    .sum()
+    .sort_values("month")
+)
 
     fig = px.line(agg, x="month", y="inventory_value", title="Inventory Valuation Over Time")
-    total_val = dff["inventory_value"].sum()
+
+    latest_month = dff["month"].max()
+    total_val = dff[dff["month"] == latest_month]["inventory_value"].sum()
     total_text = f"€{total_val:,.0f}"
 
     return fig, total_text

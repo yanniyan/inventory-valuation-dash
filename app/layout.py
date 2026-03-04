@@ -4,11 +4,9 @@ import pandas as pd
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(BASE_DIR, "data", "inventory_valuation_12m.csv")
+DATA_PATH = os.path.join(BASE_DIR, "data", "inventory_valuation.csv")
 
 df = pd.read_csv(DATA_PATH)
-
-#df = pd.read_csv("../data/inventory_valuation_12m.csv")
 
 layout = dbc.Container(
     [
@@ -17,7 +15,7 @@ layout = dbc.Container(
             [
                 dbc.Col(
                     dcc.Dropdown(
-                        id="sku-filter",
+                        id="SKU-filter",
                         options=[{"label": s, "value": s} for s in sorted(df["sku"].unique())],
                         multi=True,
                         placeholder="Select SKU(s)",
@@ -26,7 +24,7 @@ layout = dbc.Container(
                 ),
                 dbc.Col(
                     dcc.Dropdown(
-                        id="location-filter",
+                        id="Location-filter",
                         options=[{"label": l, "value": l} for l in sorted(df["location"].unique())],
                         multi=True,
                         placeholder="Select Location(s)",
@@ -41,7 +39,7 @@ layout = dbc.Container(
                 dbc.Col(dcc.Graph(id="valuation-over-time"), md=8),
                 dbc.Col(
                     [
-                        html.H4("Total Inventory Value"),
+                        html.H4("Current Inventory Value"),
                         html.Div(id="total-valuation", style={"fontSize": "24px", "fontWeight": "bold"}),
                     ],
                     md=4,
@@ -52,4 +50,6 @@ layout = dbc.Container(
     fluid=True,
 )
 
-
+# ---------------------------------------------------
+# SKU + VARIATION CONFIGURATION
+# ---------------------------------------------------

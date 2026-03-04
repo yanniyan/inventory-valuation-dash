@@ -1,173 +1,157 @@
-import numpy as np 
 import pandas as pd
-import os
+import numpy as np
+
 np.random.seed(42)
 
-# Core definitions - SKU + Locations 
-months = pd.period_range("2024-01", periods=12, freq="M").astype(str)
+# ---------------------------------------------------
+# SKU + VARIATION CONFIGURATION
+# ---------------------------------------------------
 
-flavours = [
-    "Matcha",
-    "Acai",
-    "Coconut",
-    "Turmeric",
-    "Ginger Lemon",
-    "Berry Fusion",
-    "Cacao",
-    "Vanilla Chai",
-    "Raspberry",
-    "Pistachio",
+# Top movers
+top_skus = [
+    "classic",
+    "wild_berry_burst",
+    "tropical_citrus"
 ]
 
-variations = ["Original", "Plus"]
-
-finished_skus = [
-    f"{flavour} {variation}"
-    for flavour in flavours
-    for variation in variations
+# Mid-tier SKUs
+other_skus = [
+    "peach_hibiscus",
+    "apple_elderflower",
+    "mango_passion",
+    "raspberry_lime",
+    "pineapple_ginger"
 ]
 
-raw_materials = ["RM_Original", "RM_Plus"]
-packaging_skus = ["Pack_Small", "Pack_Large"]
+skus = top_skus + other_skus
+variations = ["original", "plus"]
 
-locations = [
-    "EU_North",
-    "EU_Central",
-    "EU_South",
-    "EU_West",
-    "EU_East",
-    "Amazon_FBA",
-    "TikTok_FBT",
-    "Shopify_FC",
-    "Factory_A",
-    "Factory_B",
-    "Inbound_Transit",
-    "Interwarehouse_Transit",
-]
+# Category (all beverages for now)
+category = "beverage"
 
-# Cost structure
-raw_costs = {"RM_Original": 7.0, "RM_Plus": 9.0}
-pack_costs = {"Pack_Small": 0.55, "Pack_Large": 0.95}
+# Unit costs (COGS, not sales price)
+unit_cost_map = {
+    "original": 10,
+    "plus": 12,
+}
 
-# Finished goods unit cost assumptions (simplified)
-# Assume Original uses RM_Original + Pack_Small, Plus uses RM_Plus + Pack_Large
-finished_unit_cost = {}
-for sku in finished_skus:
-    if "Original" in sku:
-        finished_unit_cost[sku] = 8.5  # e.g. 8.5 EUR per unit
+# ---------------------------------------------------
+# LOCATION CONFIGURATION
+# ---------------------------------------------------
+
+factories = ["factory_a", "factory_b"]
+tpls = ["3pl_north", "3pl_south"]
+marketplaces = ["amazon", "tiktok", "dtc"]
+transit = ["in_transit"]
+
+all_locations = factories + tpls + marketplaces + transit
+
+def location_type(loc):
+    if loc in factories:
+        return "factory"
+    if loc in tpls:
+        return "3pl"
+    if loc in marketplaces:
+        return "marketplace"
+    if loc in transit:
+        return "transit"
+    return "other"
+
+# ---------------------------------------------------
+# DATE RANGE
+# ---------------------------------------------------
+
+start = "2022-01-01"
+end = pd.Timestamp.today().replace(day=1)
+months = pd.date_range(start=start, end=end, freq="MS")
+
+# Growth curve
+growth_factor = []
+for date in months:
+    if date.year < 2024:
+        growth_factor.append(0.75)
+    elif date.year == 2024:
+        growth_factor.append(1.0)
     else:
-        finished_unit_cost[sku] = 11.0  # e.g. 11 EUR per unit
+        growth_factor.append(1.25)
 
-# -------------------------
-# Behaviour weights (top / mid / slow movers)
-# -------------------------
-top_sellers = ["Matcha", "Berry Fusion", "Vanilla Chai"]
-slow_movers = ["Turmeric", "Ginger Lemon", "Pistachio"]
+# ---------------------------------------------------
+# BASE UNITS BY LOCATION TYPE
+# ---------------------------------------------------
 
-def sku_demand_profile(sku_name: str):
-    flavour = sku_name.split()[0]  # crude but works for our naming
-    if any(flavour in f for f in top_sellers):
-        base = np.random.randint(2500, 4500)
-    elif any(flavour in f for f in slow_movers):
-        base = np.random.randint(300, 900)
-    else:
-        base = np.random.randint(1200, 2500)
-    return base
+def base_units_for_location(loc_type):
+    if loc_type == "3pl":
+        return np.random.randint(3000, 5000)
+    if loc_type == "factory":
+        return np.random.randint(1000, 2000)
+    if loc_type == "marketplace":
+        return np.random.randint(300, 700)
+    if loc_type == "transit":
+        return np.random.randint(150, 400)
+    return np.random.randint(500, 1500)
 
-# -------------------------
-# Generate finished goods inventory
-# -------------------------
+# ---------------------------------------------------
+# DATA GENERATION
+# ---------------------------------------------------
+
 rows = []
 
-for month in months:
-    # seasonality factor (Jan–Mar high, summer dip, Q4 ramp)
-    m = int(month.split("-")[1])
-    if m in [1, 2, 3]:
-        season_factor = 1.2
-    elif m in [6, 7, 8]:
-        season_factor = 0.85
-    elif m in [11, 12]:
-        season_factor = 1.15
-    else:
-        season_factor = 1.0
+for sku in skus:
+    for variation in variations:
+        cost = unit_cost_map[variation]
 
-    for sku in finished_skus:
-        base_units = sku_demand_profile(sku)
-        # add some month-to-month noise
-        monthly_units = int(base_units * season_factor * np.random.uniform(0.7, 1.3))
+        for loc in all_locations:
+            loc_type = location_type(loc)
+            base_units = base_units_for_location(loc_type)
 
-        # distribute across locations (warehouses + marketplaces + transit)
-        loc_weights = np.random.dirichlet(np.ones(len(locations)), size=1)[0]
-        for loc, w in zip(locations, loc_weights):
-            units = int(monthly_units * w * np.random.uniform(0.8, 1.2))
-            if units <= 0:
-                continue
+            # Velocity multipliers
+            if sku == "classic" and variation == "original":
+                base_units *= 1.6
+            elif sku == "classic" and variation == "plus":
+                base_units *= 1.4
+            elif sku in ["wild_berry_burst", "tropical_citrus"]:
+                base_units *= 1.25
 
-            unit_cost = finished_unit_cost[sku]
-            value = units * unit_cost
+            for i, date in enumerate(months):
+                units = int(
+                    base_units *
+                    growth_factor[i] *
+                    np.random.uniform(0.9, 1.1)
+                )
+                value = units * cost
 
-            rows.append(
-                {
-                    "month": month,
-                    "sku": sku,
-                    "variation": "Original" if "Original" in sku else "Plus",
-                    "category": "Finished",
-                    "location": loc,
-                    "inventory_units": units,
-                    "unit_cost": round(unit_cost, 2),
-                    "inventory_value": round(value, 2),
-                }
-            )
-# Generate raw materials inventory
-for month in months:
-    for rm in raw_materials:
-        for loc in ["Factory_A", "Factory_B", "Inbound_Transit"]:
-            # raw stock in kg
-            base_stock = np.random.randint(2000, 8000)
-            units = int(base_stock * np.random.uniform(0.7, 1.3))
-            unit_cost = raw_costs[rm]
-            value = units * unit_cost
+                rows.append([
+                    date,
+                    sku,
+                    variation,
+                    category,
+                    loc,
+                    units,
+                    cost,
+                    value
+                ])
 
-            rows.append(
-                {
-                    "month": month,
-                    "sku": rm,
-                    "variation": None,
-                    "category": "Raw",
-                    "location": loc,
-                    "inventory_units": units,
-                    "unit_cost": round(unit_cost, 2),
-                    "inventory_value": round(value, 2),
-                }
-            )
-# Generate packaging inventory
-for month in months:
-    for pack in packaging_skus:
-        for loc in ["Factory_A", "Factory_B"]:
-            base_stock = np.random.randint(10000, 40000)
-            units = int(base_stock * np.random.uniform(0.7, 1.3))
-            unit_cost = pack_costs[pack]
-            value = units * unit_cost
+df = pd.DataFrame(
+    rows,
+    columns=[
+        "month",
+        "sku",
+        "variation",
+        "category",
+        "location",
+        "inventory_units",
+        "unit_cost",
+        "inventory_value",
+    ],
+)
 
-            rows.append(
-                {
-                    "month": month,
-                    "sku": pack,
-                    "variation": None,
-                    "category": "Packaging",
-                    "location": loc,
-                    "inventory_units": units,
-                    "unit_cost": round(unit_cost, 2),
-                    "inventory_value": round(value, 2),
-                }
-            )
-# Build DataFrame and check total valuation
-df = pd.DataFrame(rows)
+df.to_csv("data/inventory_valuation.csv", index=False)
 
-total_valuation = df["inventory_value"].sum()
-print(f"Total valuation: €{total_valuation:,.0f}")
+# ---------------------------------------------------
+# SANITY CHECK
+# ---------------------------------------------------
 
-# Save to CSV
-os.makedirs("data", exist_ok=True)
-df.to_csv("../data/inventory_valuation_12m.csv", index=False)
-df.head()
+latest = df["month"].max()
+total_value = df[df["month"] == latest]["inventory_value"].sum()
+print(f"Latest month: {latest}")
+print(f"Total inventory value: €{total_value:,.0f}")
