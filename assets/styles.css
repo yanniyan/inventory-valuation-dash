@@ -1,0 +1,8 @@
+.kpi-card {
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.kpi-value {
+    font-weight: 600;
+}
