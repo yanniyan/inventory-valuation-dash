@@ -66,13 +66,28 @@ layout = dbc.Container(
         # -------------------------
         dbc.Row(
             [
-                dbc.Col(kpi_card("kpi-inventory-value", "Current Inventory Value"), md=3),
-                dbc.Col(kpi_card("kpi-total-units", "Total Units"), md=3),
-                dbc.Col(kpi_card("kpi-sku-count", "SKU Count"), md=3),
-                dbc.Col(kpi_card("kpi-top-location", "Top Location"), md=3),
-            ],
-            className="mt-2",
-        ),
+                dbc.Col(kpi_card("kpi-inventory-value", "Current Inventory Value"), md=2),
+                dbc.Col(kpi_card("kpi-total-units", "Total Units"), md=2),
+                dbc.Col(kpi_card("kpi-sku-count", "SKU Count"), md=2),
+                dbc.Col(kpi_card("kpi-top-location", "Top Location"), md=2),
+                dbc.Col(kpi_card("kpi-month-change", "Change vs Previous Month"), md=2),
+                dbc.Col(kpi_card("kpi-turnover", "Turnover",
+                                 extra = dbc.ButtonGroup(
+                                    [
+                                        dbc.Button("%", id="turnover-percent", size="sm", color="secondary", outline=True),
+                                        dbc.Button("Abs", id="turnover-abs", size="sm", color="secondary", outline=True),
+                                    ],
+                                    
+                                    size="sm",
+                                    style={"transform": "scale(0.85)", "transformOrigin": "right top"}
+                                    )
+                                ), 
+                            md=2
+                        )
+                    ],
+                    className="mt-2",
+                ),
+
 
         # ---------------------------------------------------
         # VALUATION OVER TIME CHART
@@ -86,19 +101,50 @@ layout = dbc.Container(
         ),
 
     # ---------------------------------------------------
+    # EXPORT BUTTONS
+    # ---------------------------------------------------
+    #html.Div(style={"height": "4px"}),
+
+# Export buttons row
+    html.Div(
+    [
+        html.H4("Monthly Summary", className="mb-1"),
+
+        html.Div(
+            [
+                dbc.Button(
+                    "Export CSV",
+                    id="export-csv-btn",
+                    color="secondary",
+                    size="sm",
+                    className="me-2"
+                ),
+                dbc.Button(
+                    "Export PDF",
+                    id="export-pdf-btn",
+                    color="secondary",
+                    size="sm"
+                ),
+            ],
+            className="mb-2",
+            style={"display": "flex", "gap": "6px"}
+        ),
+    ]
+),
+
+    # ---------------------------------------------------
     # Monthly Summary Table
     # ---------------------------------------------------
     # this section adds a new table to the dashboard that shows a monthly summary of inventory valuation, units, and SKU count by location. The table updates based on the same SKU and Location filters as the line chart.        
         
         html.Div(style={"height": "4px"}), 
-        html.H4("Monthly Summary"),
         dbc.Row(
             [
                 dbc.Col(
                     dash_table.DataTable(
                         id="monthly-summary-table",
                         columns=[
-                            {"name": "Month", "id": "month", "type": "datetime"},
+                            {"name": "Month", "id": "month", "type": "text"},
                             {"name": "Location", "id": "location"},
                             {"name": "Total Value", "id": "total_value", "type": "numeric"},
                             {"name": "Units", "id": "units", "type": "numeric"},
@@ -106,8 +152,6 @@ layout = dbc.Container(
                         ],
                          style_table={
                                     "overflowX": "auto",
-                                    "maxHeight": "260px",
-                                    "overflowY": "auto",
                                     "border": "1px solid #e1e1e1",
                                 },
                         style_cell={
